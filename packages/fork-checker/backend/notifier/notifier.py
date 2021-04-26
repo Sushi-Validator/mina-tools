@@ -1,15 +1,14 @@
 # Imports
-from google.cloud import storage
-import os
-import json
-import subprocess
-from pathlib import Path
+from firebase_admin import credentials, firestore, initialize_app, db
 from glob import glob
-import time
-import sys
-import pyrebase
 from graph_tool import Graph
-from graph_tool.draw import graph_draw, graphviz_draw, arf_layout, fruchterman_reingold_layout, sfdp_layout
+from graph_tool.draw import sfdp_layout
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
 
 # GLOBALS
 blue = (0, 0, 1, 1)
@@ -32,11 +31,12 @@ g.vertex_properties['vertex_color'] = vertex_color
 
 # Synchronize local block collection with Google Cloud bucket, then return the synchronized file listing.
 def download():
-    Path(os.environ.get('OUTPUT_DIR')).mkdir(parents=True, exist_ok=True)
-    command = f"gsutil -m rsync -r gs://{os.environ.get('BUCKET_NAME')} {os.environ.get('OUTPUT_DIR')}"
+    Path(os.environ.get('OUTPUT_DIR', "mina_mainnet_blocks")).mkdir(parents=True, exist_ok=True)
+    command = f"gsutil -m rsync -r gs://{os.environ.get('BUCKET_NAME', 'mina_mainnet_blocks')} " \
+              f"{os.environ.get('OUTPUT_DIR', 'mina_mainnet_blocks')}"
     print(f"Running command: {command}")
     subprocess.run(command.split(), stdout=subprocess.PIPE, text=True)
-    return glob(os.environ.get('OUTPUT_DIR') + "/*")
+    return glob(os.environ.get('OUTPUT_DIR', "mina_mainnet_blocks") + "/*")
 
 
 # Prune unnecessary data from blocks and organize them into a collection, then return said collection of blocks.
@@ -171,7 +171,8 @@ def stage(forks, blocks):
         forkdata = {"length": len(fork), "blocks": [], "creators": [], "rewards": 0, "latest": '', "last_updated": 0}
         for block in fork:
             forkdata["blocks"].append(block)
-            forkdata["creators"].append(blocks[block]["protocol_state"]["body"]["consensus_state"]["block_creator"])
+            if blocks[block]["protocol_state"]["body"]["consensus_state"]["block_creator"] not in forkdata["creators"]:
+                forkdata["creators"].append(blocks[block]["protocol_state"]["body"]["consensus_state"]["block_creator"])
             if blocks[block]["protocol_state"]["body"]["consensus_state"]["supercharge_coinbase"]:
                 forkdata["rewards"] += 1440
             else:
@@ -187,22 +188,22 @@ def stage(forks, blocks):
 # Pushes changes to a FireBase database.
 # Requires valid data to be contained within its input parameters - this can be obtained using the stage() function.
 def firebase_update(staging):
-    fireconfig = {
-        "apiKey": os.environ.get('API_KEY'),
-        "authDomain": os.environ.get('AUTH_DOMAIN'),
-        "databaseURL": os.environ.get('DATABASE_URL'),
-        "storageBucket": os.environ.get('STORAGE_BUCKET')
-    }
-    firebase = pyrebase.initialize_app(fireconfig)
-    auth = firebase.auth()
-    user = auth.sign_in_with_email_and_password(os.environ.get('USERNAME'), os.environ.get('PASSWORD'))
-    user = auth.refresh(user['refreshToken'])
-    db = firebase.database()
-    db_json = db.child("forks").get(user["idToken"]).val()
+    environment = os.environ.get("ENV", "DEV")
+    url = os.environ.get("DB_URL", "https://sv-mina-forks-default-rtdb.firebaseio.com/")
+    port = int(os.environ.get("PORT", 8080))
+
+    if environment == "DEV":
+        cred = credentials.Certificate('service_account.json')
+        default_app = initialize_app(cred, options={'databaseURL': url})
+    else:
+        default_app = initialize_app(options={'databaseURL': url})
+    client = firestore.client()
+
+    db_json = db.reference("forks").get()
     if db_json is None:
         for fork in staging:
-            db.child("forks").push(fork, user["idToken"])
-        db_json = db.child("forks").get(user["idToken"]).val()
+            db.reference("forks").push(fork)
+        db_json = db.reference("forks").get()
 
     for unique in db_json:
         prune = True
@@ -211,7 +212,7 @@ def firebase_update(staging):
                 prune = False
                 break
         if prune:
-            db.child("forks").child(unique).remove(user["idToken"])
+            db.reference("forks").child(unique).delete()
 
     for fork in staging:
         new_fork = True
@@ -220,7 +221,7 @@ def firebase_update(staging):
                 new_fork = False
                 break
         if new_fork:
-            db.child("forks").push(fork, user["idToken"])
+            db.reference("forks").push(fork)
 
 
 # Reset everything and run from the top, optionally with printouts based on boolean parameter.
@@ -258,3 +259,6 @@ def powercycle(printout=False):
     if printout:
         print(f"Synchronized {len(forks)} total forks with the FireBase database in {end - start} seconds.")
 
+
+if __name__ == '__main__':
+    powercycle()
