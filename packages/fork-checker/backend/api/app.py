@@ -28,14 +28,14 @@ forks_ref = db.reference('forks')
 @app.route('/forks', methods=['GET'])
 def forks():
     """
-        List all forks where len > max_length
+        List all forks where len > min_length
     """
     try:
         # Check if ID was passed to URL query
-        max_length = int(request.args.get('max_length', 2))
+        min_length = int(request.args.get('min_length', 2))
         updated_after = int(request.args.get('updated_after', 0))
 
-        forks_query = forks_ref.order_by_child('length').start_at(max_length)
+        forks_query = forks_ref.order_by_child('length').start_at(min_length)
         matched_forks = forks_query.get()
         print(matched_forks)
         forks_list = []
@@ -50,7 +50,7 @@ def forks():
         else:
             res = forks_list
             print(res)
-        return jsonify(res), 200 
+        return jsonify(res), 200  
 
     except Exception as e:
         return f"An Error Occured: {e}"
