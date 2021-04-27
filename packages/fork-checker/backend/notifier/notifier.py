@@ -170,7 +170,7 @@ def stage(forks, blocks):
     for fork in forks:
         forkdata = {"length": len(fork), "blocks": [], "creators": [], "rewards": 0, "latest": '', "last_updated": 0}
         for block in fork:
-            forkdata["blocks"].append(block)
+            forkdata["blocks"].insert(0, block)
             if blocks[block]["protocol_state"]["body"]["consensus_state"]["block_creator"] not in forkdata["creators"]:
                 forkdata["creators"].append(blocks[block]["protocol_state"]["body"]["consensus_state"]["block_creator"])
             if blocks[block]["protocol_state"]["body"]["consensus_state"]["supercharge_coinbase"]:
