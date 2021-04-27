@@ -178,7 +178,7 @@ def stage(forks, blocks):
             else:
                 forkdata["rewards"] += 720
             if int(blocks[block]["scheduled_time"]) > int(forkdata["last_updated"]):
-                forkdata["last_updated"] = blocks[block]["scheduled_time"]
+                forkdata["last_updated"] = int(blocks[block]["scheduled_time"])
                 forkdata["latest"] = [block][0]
 
         staging.append(forkdata)
@@ -261,4 +261,4 @@ def powercycle(printout=False):
 
 
 if __name__ == '__main__':
-    powercycle()
+    powercycle(printout=True)
