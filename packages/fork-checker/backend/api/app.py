@@ -32,12 +32,12 @@ def forks():
     """
     try:
         # Check if ID was passed to URL query
+        public_key = request.args.get('public_key', None)
         min_length = int(request.args.get('min_length', 2))
         updated_after = int(request.args.get('updated_after', 0))
 
         forks_query = forks_ref.order_by_child('length').start_at(min_length)
         matched_forks = forks_query.get()
-        print(matched_forks)
         forks_list = []
         for fork_id in matched_forks:
             body = matched_forks[fork_id]
@@ -46,10 +46,13 @@ def forks():
 
         if updated_after > 0:
             generator = filter(lambda fork: int(fork["last_updated"]) >= updated_after, forks_list)
-            res = list(generator)
-        else:
-            res = forks_list
-            print(res)
+            forks_list = list(generator)
+        
+        if public_key: 
+            generator = filter(lambda fork: public_key in fork["creators"] , forks_list)
+            forks_list = list(generator)
+        
+        res = forks_list
         return jsonify(res), 200  
 
     except Exception as e:
