@@ -1,3 +1,31 @@
+/* FORKS */
+.Fork-Table {
+  
+}
+
+.Fork-Wrapper {
+  text-align: left;
+  padding-bottom: 1vh;
+  font-family: Oswald, sans-serif;
+  font-size: 17.333px;
+}
+
+.Fork-Timestamp {
+  
+}
+
+.Fork-Links {
+  
+}
+
+.Fork-Details {
+
+}
+
+a {
+  font-style: italic;
+}
+
 .App {
   text-align: center;
 }
@@ -19,7 +47,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
 }
 
 .App-link {
