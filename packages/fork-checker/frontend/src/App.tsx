@@ -1,30 +1,28 @@
 import React from 'react';
 import './App.css';
 import $ from 'jquery';
-import { Redirect, Link, Route, BrowserRouter as Router } from 'react-router-dom';
+import { Redirect, Route, BrowserRouter as Router } from 'react-router-dom';
 
-// Big ugly monster, clean this up later
-// TODO: Cleanup, sort output by timestamp, determine method for grabbing latest producer and displaying it
-function Update(max: any) {
-  // 'max' parameter dictates how many forks we want to display at a time
-  let last_week = Math.floor((Date.now() / 1000) - 604800);
+// Will contain all of our visual fork data as a collection of HTML elements once Update() runs
+var forkTable = document.createElement("div");
+
+// This function will grab our fork data, organize it into divs, and then store it to a global variable for us to work with
+// TODO: Producer
+function Update(max: number, timeframe: number) {
+  let window = Math.floor((Date.now() / 1000) - timeframe);
   let API = 'https://fork-checker-api-iyrf2hryca-uw.a.run.app/forks?';
-  let DEFAULT_QUERY = 'updated_after=' + last_week + '&min_length=5'; // Get forks from within the past week that are length >= 5
-  // jQuery AJAX - fetch might be a better fit (and is native), but AJAX is easy.
-  $.ajax({
+  let DEFAULT_QUERY = 'updated_after=' + window + '&min_length=5';
+$.ajax({
     url: API + DEFAULT_QUERY,
     async: true,
     dataType: 'json',
     success: function(data) {
-      // Build a table containing our forks
       $(function() {
-        // For each entry, add an entry showing the creator, timestamp, fork length, and lost rewards
-        // Clickthrough should yield more complex information, this is just a brief overview and should be compact
-        // HTML tables are ugly by default so I'm using a div, but this can be re-organized easily if this is a stupid idea
-        let forkTable = document.createElement("div");
+        // Reset forkTable for new content
+        forkTable = document.createElement("div");
         forkTable.id = "Fork-Table";
         // Add each entry to its own div which will be contained within Fork-Table
-        for (var i = 0; i < max; i++) {
+        for (var i = 0; i < data.length; i++) {
           // Wrapper
           /*-----------------------------------------------*\
           | [TIMESTAMP]                                     |
@@ -36,7 +34,8 @@ function Update(max: any) {
 
           let forkWrapper = document.createElement("div");
           forkWrapper.className = "Fork-Wrapper";
-          forkWrapper.id = data[i].id;
+          forkWrapper.id = data[i].last_updated;
+          forkWrapper.classList.add("hidden");
 
           // Timestamp
           let forkTimestamp = document.createElement("div");
@@ -51,10 +50,13 @@ function Update(max: any) {
           forkLinks.className = "Fork-Links";
           let forkLatestLink = document.createElement("a");
           let forkProducerLink = document.createElement("a");
+          let interemNode = document.createTextNode(", by ");
           forkLatestLink.href = "/Fork?fork=" + data[i].id;
           forkLatestLink.innerText = data[i].latest;
-          forkProducerLink.innerText = ", by Placeholder Producer";
+          forkProducerLink.href = "/Producer?producer=" + "WIP";
+          forkProducerLink.innerText = "Placeholder Producer";
           forkLinks.appendChild(forkLatestLink);
+          forkLinks.appendChild(interemNode);
           forkLinks.appendChild(forkProducerLink);
           forkWrapper.appendChild(forkLinks);
 
@@ -67,22 +69,48 @@ function Update(max: any) {
           // Integration
           forkTable.appendChild(forkWrapper);
         };
-        // Replace loading text with content
-        $("#Fork-Table").replaceWith(forkTable);
+
+        // Update complete, now "refresh" our display
+        Refresh(max);
       });
     }
   });
-  // Display a loading message while we wait for the API call
-  return (
-    <>
-      <div id="Fork-Header">Showing {max} forks from the past week:</div>
-      <div id="Fork-Table">Loading...</div>
-    </>
-  );
+}
+
+// Function to set as visible a limited number of our processed forks
+function Refresh(max: number) {
+  let forks = Array.from(forkTable.children);
+  // We need to reset the hidden status on all elements for cases with decrementing visibility
+  for (var i = 0; i < forks.length; i++) {
+    let caveman = forks[i] as HTMLElement;
+    caveman.classList.add("hidden");
+  }
+  // Now un-hide however many we need
+  for (i = 0; i < max; i++) {
+    let caveman = forks[i] as HTMLElement;
+    caveman.classList.remove("hidden");
+  }
+  // Remove the old fork div
+  if($("#Fork-Table")[0]) {
+    $("#Fork-Table").remove();
+  }
+  // ..And add our new one
+  $(forkTable).insertAfter($("#Fork-Header"))
+}
+
+// Update timeframe options for the API call. Forces a data refresh.
+function selector() {
+  let selection = $("#Fork-Timeframe").get(0) as HTMLSelectElement;
+  let counter = ($('#Fork-Quantity') as any).get(0)
+  let reloading = document.createElement("div");
+  reloading.id = "Fork-Table";
+  reloading.innerText = "Reloading..."
+  $("#Fork-Table").replaceWith(reloading);
+  Update(parseInt(counter.innerText), parseInt(selection.value));
 }
 
 // Fetch URL queries and their value by key
-function GetParameter(parameter: any) {
+function GetParameter(parameter: String) {
   let url = window.location.search.substring(1);
   let urlVars = url.split('?');
   for (var i = 0; i < urlVars.length; i++) {
@@ -98,7 +126,7 @@ function GetParameter(parameter: any) {
 }
 
 // Display fork details
-// // TODO: add redirect if no fork query
+// TODO: Refactor to match Update() workflow
 function Details(parameter: any) {
   if (!parameter) {
     // Redirect should happen here if there is no fork at all
@@ -112,7 +140,7 @@ function Details(parameter: any) {
     dataType: 'json',
     success: function(data) {
       $(function() {
-        if (data.length === 0 || data[0] == undefined) {
+        if (data.length === 0 || data[0] === undefined) {
           // Malformed id will still successfully return an empty JSON, so redirect as though no parameter was given
           window.location.href = '/Index';
         }
@@ -135,19 +163,54 @@ function Details(parameter: any) {
   );
 }
 
+// Counter modifier - this exists solely so we can use pretty buttons rather than an ugly stock input interface
+function counter(increment: Boolean = true) {
+  let counter = ($('#Fork-Quantity') as any).get(0);
+  let forks = Array.from(forkTable.children); // Used to set our upper display limit
+  // Increase counter by default; cap is arbitrarily set to 25
+  if (increment) {
+    counter.innerText = (counter.innerText++ > forks.length - 1) ? forks.length : counter.innerText++;
+    Refresh(counter.innerText);
+  }
+  // Decrement otherwise; don't allow counter to drop below 1
+  else {
+    counter.innerText = (counter.innerText-- < 2) ? 1 : counter.innerText--;
+    Refresh(counter.innerText);
+  }
+}
+
+
 // Main page
 const Index = () => (
   <div className="App">
     <Router>
       <Route path="/fork" component={ Fork } />
+      <Route path="/producer" component={ Producer } />
     </Router>
     <header className="App-header">
-      {Update(5)}
+      <div id="Fork-Header">
+        Displaying&nbsp;
+        <span className="counterWrapper">
+          <button onClick={() => counter(false)} >–</button>
+          <span id="Fork-Quantity">5</span>
+          <button onClick={() => counter()}>+</button>
+        </span>
+        &nbsp;most recent forks from within the past&nbsp;
+        <select onChange={() => selector()} id="Fork-Timeframe" defaultValue="604800">
+        <option value="86400">Day</option>
+        <option value="604800">Week</option>
+        <option value="2629743">Month</option>
+        <option value="31556926">Year</option>
+        </select>
+      </div>
+      <div id="Fork-Table">Loading...</div>
+      {Update(5, 604800)} 
     </header>
   </div>
 );
 
 // Fork page
+// TODO: Decide on display/organizational layout for page/data and implement
 const Fork = () => {
   let forkID = GetParameter('fork');
   return (

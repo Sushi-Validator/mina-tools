@@ -1,44 +1,90 @@
+/* HEADER INTERFACE */
+#Fork-Header {
+  margin-top: 200px; /* This is placeholder spacing for an actual page header's content */
+  user-select: none;
+}
+
+.counterWrapper span {
+  font-weight: bold;
+}
+
+.counterWrapper button {
+  font-size: 16px;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.counterWrapper button:hover {
+  color: orange;
+}
+
+#Fork-Timeframe {
+  font-family: "Segoe UI";
+  font-size: 16px;
+  font-weight: bold;
+  appearance:none;
+  border:none;
+  cursor: pointer;
+}
+
+#Fork-Timeframe:hover {
+  color:orange;
+}
+
+
 /* FORKS */
 .Fork-Table {
-  
+  position:absolute;
 }
 
 .Fork-Wrapper {
+  float: center;
   text-align: left;
-  padding-bottom: 1vh;
-  font-family: Oswald, sans-serif;
-  font-size: 17.333px;
+  padding : 10px;
+  margin: 10px;
+  background-color: #F7F7F7;
+  /*user-select: none;*/
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20); /* Stacked box shadows, pseudo-Material */
 }
 
 .Fork-Timestamp {
-  
-}
-
-.Fork-Links {
-  
+  font-size: 12px;
 }
 
 .Fork-Details {
+  text-align: center; 
 
 }
 
-a {
+.hidden {
+  display: none;
+}
+
+
+/* LINKS, ALL */
+a:link { /* Standard Link */
+  color: #000000;
+  /*text-decoration: none;*/
   font-style: italic;
 }
 
+a:visited { /* Visited link */
+  color:#000000;
+}
+
+a:hover { /* Mouse-over link */
+  color:#666666;
+}
+
+a:active { /* Selected link */
+  color:#333333;
+}
+
+
+/* REACT STUFF */
 .App {
   text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-float infinite 3s ease-in-out;
-  }
 }
 
 .App-header {
@@ -46,21 +92,5 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
 }
 
-.App-link {
-  color: rgb(112, 76, 182);
-}
-
-@keyframes App-logo-float {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(10px);
-  }
-  100% {
-    transform: translateY(0px);
-  }
-}
