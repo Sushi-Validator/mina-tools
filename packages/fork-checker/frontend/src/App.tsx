@@ -214,7 +214,7 @@ const Index = () => (
     <header className="App-header">
       <div id="Fork-Header">
         <div id="Logo">
-        <img src="https://lithi.io/file/RiJn.webp"> </img>
+        <img src="https://lithi.io/file/RiJn.webp" alt='sushi'></img>
         SUSHI VALIDATOR
         </div>
         <div id="Toolbar-Wrapper">
