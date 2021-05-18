@@ -55,7 +55,7 @@ $.ajax({
           let interemNode = document.createTextNode(", by ");
           forkLatestLink.href = "/Fork?fork=" + data[i].id;
           forkLatestLink.innerText = data[i].latest;
-          forkProducerLink.href = "/Producer?producer=" + "WIP";
+          forkProducerLink.href = "/Producer?producer=WIP";
           forkProducerLink.innerText = "Placeholder Producer";
           forkLinks.appendChild(forkLatestLink);
           forkLinks.appendChild(interemNode);
@@ -214,7 +214,7 @@ const Index = () => (
     <header className="App-header">
       <div id="Fork-Header">
         <div id="Logo">
-        <img src="https://lithi.io/file/RiJn.webp"></img>
+        <img src="https://lithi.io/file/RiJn.webp"> </img>
         SUSHI VALIDATOR
         </div>
         <div id="Toolbar-Wrapper">
