@@ -9,7 +9,8 @@ var forkTable = document.createElement("div");
 // This function will grab our fork data, organize it into divs, and then store it to a global variable for us to work with
 // TODO: Producer
 function Update(max: number, timeframe: number) {
-  let window = Math.floor((Date.now() / 1000) - timeframe);
+  let window = Date.now() - (timeframe * 1000);
+
   let API = 'https://fork-checker-api-iyrf2hryca-uw.a.run.app/forks?';
   let DEFAULT_QUERY = 'updated_after=' + window + '&min_length=5';
 $.ajax({
@@ -18,6 +19,7 @@ $.ajax({
     dataType: 'json',
     success: function(data) {
       $(function() {
+        console.log(data);
         // Reset forkTable for new content
         forkTable = document.createElement("div");
         forkTable.id = "Fork-Table";
@@ -109,6 +111,32 @@ function selector() {
   Update(parseInt(counter.innerText), parseInt(selection.value));
 }
 
+// Timer, using the basic setInterval() function. Used for automated refresh of API data.
+// Starts initialized by default, in part so we have a handle to stop/modify it easily
+var refreshTimer = setInterval(selector, 300000);
+function resetTimer() {
+  let selection = $("#refreshTimer").get(0) as HTMLSelectElement;
+  let interval = parseInt(selection.value);
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(selector, interval);
+}
+
+// Counter modifier - this exists solely so we can use pretty buttons rather than an ugly stock input interface
+function counter(increment: Boolean = true) {
+  let counter = ($('#Fork-Quantity') as any).get(0);
+  let forks = Array.from(forkTable.children); // Used to set our upper display limit
+  // Increase counter by default; cap is arbitrarily set to 25
+  if (increment) {
+    counter.innerText = (counter.innerText++ > forks.length - 1) ? forks.length : counter.innerText++;
+    Refresh(counter.innerText);
+  }
+  // Decrement otherwise; don't allow counter to drop below 1
+  else {
+    counter.innerText = (counter.innerText-- < 2) ? 1 : counter.innerText--;
+    Refresh(counter.innerText);
+  }
+}
+
 // Fetch URL queries and their value by key
 function GetParameter(parameter: String) {
   let url = window.location.search.substring(1);
@@ -133,17 +161,35 @@ function Details(parameter: any) {
     return <Redirect to="/Index" />
   }
   // AJAX call to the API for a specific fork
-  let API = 'https://fork-checker-api-iyrf2hryca-uw.a.run.app/forks?fork_id='
+  let API = 'https://fork-checker-api-iyrf2hryca-uw.a.run.app/fork/'
   $.ajax({
     url: API + parameter,
     async: true,
     dataType: 'json',
     success: function(data) {
       $(function() {
+        console.log(data)
         if (data.length === 0 || data[0] === undefined) {
           // Malformed id will still successfully return an empty JSON, so redirect as though no parameter was given
           window.location.href = '/Index';
         }
+
+        // Wrapper
+
+        /*-----------\ /----------------\ /-------------\
+        | Fork Name  | | Fork Producers | | Fork Losses |
+        \------------/ \----------------/ \-------------/
+
+        /-----------------------------------------------\
+        |                  Block Hash           (V)     |
+        |-----------------------------------------------|
+        |                  Timestamp                    |
+        |-----------------------------------------------|
+        |    Creator (link to creator pages, StakeTab)  |
+        |-----------------------------------------------|
+        |             View on MinaExplorer              |
+        \----------------------------------------------*/
+
         let forkWrapper = document.createElement("div");
         forkWrapper.className = "Fork-Wrapper";
         forkWrapper.id = data[0].id;
@@ -151,32 +197,10 @@ function Details(parameter: any) {
         forkDetails.className = "Fork-Details";
         forkDetails.innerText = "Viewing Fork with latest block = " + data[0].latest + "\n Under Construction";
         forkWrapper.appendChild(forkDetails);
-        $('#Fork-Details').replaceWith(forkWrapper);
       });
+      Refresh(data.length);
     }
   });
-  // Loading...
-  return (
-    <>
-      <div id="Fork-Details">Loading...</div>
-    </>
-  );
-}
-
-// Counter modifier - this exists solely so we can use pretty buttons rather than an ugly stock input interface
-function counter(increment: Boolean = true) {
-  let counter = ($('#Fork-Quantity') as any).get(0);
-  let forks = Array.from(forkTable.children); // Used to set our upper display limit
-  // Increase counter by default; cap is arbitrarily set to 25
-  if (increment) {
-    counter.innerText = (counter.innerText++ > forks.length - 1) ? forks.length : counter.innerText++;
-    Refresh(counter.innerText);
-  }
-  // Decrement otherwise; don't allow counter to drop below 1
-  else {
-    counter.innerText = (counter.innerText-- < 2) ? 1 : counter.innerText--;
-    Refresh(counter.innerText);
-  }
 }
 
 
@@ -189,19 +213,34 @@ const Index = () => (
     </Router>
     <header className="App-header">
       <div id="Fork-Header">
-        Displaying&nbsp;
-        <span className="counterWrapper">
-          <button onClick={() => counter(false)} >–</button>
-          <span id="Fork-Quantity">5</span>
-          <button onClick={() => counter()}>+</button>
-        </span>
-        &nbsp;most recent forks from within the past&nbsp;
-        <select onChange={() => selector()} id="Fork-Timeframe" defaultValue="604800">
-        <option value="86400">Day</option>
-        <option value="604800">Week</option>
-        <option value="2629743">Month</option>
-        <option value="31556926">Year</option>
-        </select>
+        <div id="Logo">
+        <img src="https://lithi.io/file/RiJn.webp"></img>
+        SUSHI VALIDATOR
+        </div>
+        <div id="Toolbar-Wrapper">
+          Displaying&nbsp;
+          <span className="counterWrapper">
+            <button onClick={() => counter(false)}>–</button>
+            <span id="Fork-Quantity">5</span>
+            <button onClick={() => counter()}>+</button>
+          </span>
+          &nbsp;most recent forks from within the past&nbsp;
+          <select onChange={() => selector()} id="Fork-Timeframe" defaultValue="604800">
+          <option className="option" value="604800">Week</option>
+          <option className="option" value="2629743">Month</option>
+          <option className="option" value="31556926">Year</option>
+          </select>
+          <span className="refreshWrapper">
+            <button onClick={() => selector()} id="refreshButton"></button>
+            <select onChange={() => resetTimer()}  id="refreshTimer" defaultValue="300000">
+            <option className="option" value="60000">1m</option>
+            <option className="option" value="300000">5m</option>
+            <option className="option" value="600000">10m</option>
+            <option className="option" value="1800000">30m</option>
+            <option className="option" value="3600000">1h</option>
+            </select>
+          </span>
+        </div>
       </div>
       <div id="Fork-Table">Loading...</div>
       {Update(5, 604800)} 
@@ -219,6 +258,7 @@ const Fork = () => {
         <Route path="/index" component={ Index } />
       </Router>
       <header className="App-header">
+        <div id="Fork-Table">Loading...</div>
         {Details(forkID)}
       </header>
     </div>
