@@ -1,7 +1,8 @@
 import React from 'react';
 import './App.css';
 import $ from 'jquery';
-import { Redirect, Route, BrowserRouter as Router } from 'react-router-dom';
+import { Redirect, Route, BrowserRouter as Router, Switch } from 'react-router-dom';
+import { ForkBrowser } from './pages/ForkBrowser';
 
 // Will contain all of our visual fork data as a collection of HTML elements once Update() runs
 var forkTable = document.createElement("div");
@@ -208,43 +209,24 @@ function Details(parameter: any) {
 const Index = () => (
   <div className="App">
     <Router>
-      <Route path="/fork" component={ Fork } />
-      <Route path="/producer" component={ Producer } />
+      <header className="App-header">
+        <div id="Fork-Header">
+          <div id="Logo">
+          <img src="https://lithi.io/file/RiJn.webp" alt='sushi'></img>
+          SUSHI VALIDATOR
+          </div>
+        </div>
+        {/* <div id="Fork-Table">Loading...</div> */}
+        {/* {Update(5, 604800)}  */}
+      </header>
+      <Switch>
+        <Route exact path="/">
+          <ForkBrowser />
+        </Route>
+      </Switch>
+      {/* <Route path="/fork" component={ Fork } />
+      <Route path="/producer" component={ Producer } /> */}
     </Router>
-    <header className="App-header">
-      <div id="Fork-Header">
-        <div id="Logo">
-        <img src="https://lithi.io/file/RiJn.webp" alt='sushi'></img>
-        SUSHI VALIDATOR
-        </div>
-        <div id="Toolbar-Wrapper">
-          Displaying&nbsp;
-          <span className="counterWrapper">
-            <button onClick={() => counter(false)}>–</button>
-            <span id="Fork-Quantity">5</span>
-            <button onClick={() => counter()}>+</button>
-          </span>
-          &nbsp;most recent forks from within the past&nbsp;
-          <select onChange={() => selector()} id="Fork-Timeframe" defaultValue="604800">
-          <option className="option" value="604800">Week</option>
-          <option className="option" value="2629743">Month</option>
-          <option className="option" value="31556926">Year</option>
-          </select>
-          <span className="refreshWrapper">
-            <button onClick={() => selector()} id="refreshButton"></button>
-            <select onChange={() => resetTimer()}  id="refreshTimer" defaultValue="300000">
-            <option className="option" value="60000">1m</option>
-            <option className="option" value="300000">5m</option>
-            <option className="option" value="600000">10m</option>
-            <option className="option" value="1800000">30m</option>
-            <option className="option" value="3600000">1h</option>
-            </select>
-          </span>
-        </div>
-      </div>
-      <div id="Fork-Table">Loading...</div>
-      {Update(5, 604800)} 
-    </header>
   </div>
 );
 
