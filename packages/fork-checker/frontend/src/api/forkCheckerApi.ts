@@ -5,12 +5,26 @@ const defaultConfig = {
   baseURL: "https://fork-checker-api-iyrf2hryca-uw.a.run.app",
 };
 
-interface callParams {
+declare module "axios" {
+  export interface AxiosResponse<T = any> extends Promise<T> {}
+}
+
+type callParams = {
   url: string;
-  method: string;
+  method?: string;
   data?: object;
   headers?: object;
-}
+};
+
+type Fork = {
+  blocks: string[];
+  creators: string[];
+  id: string;
+  last_updated: number;
+  latest: string;
+  length: number;
+  rewards: number;
+};
 
 export class ForkCheckerApi {
   instance: AxiosInstance;
@@ -20,7 +34,7 @@ export class ForkCheckerApi {
     this.instance.interceptors.response.use(this.handleSuccess);
   }
 
-  handleSuccess(response: AxiosResponse): any {
+  handleSuccess(response: AxiosResponse) {
     const { data, status } = response;
 
     if (status === 200) {
@@ -38,7 +52,7 @@ export class ForkCheckerApi {
     ...rest
   }: callParams) => {
     if (method === "POST") {
-      return this.instance({
+      return await this.instance({
         url,
         method,
         headers,
@@ -46,7 +60,7 @@ export class ForkCheckerApi {
         ...rest,
       });
     } else if (method === "GET") {
-      return this.instance({
+      return await this.instance({
         url: `${url}?${qs.stringify(data)}`,
         method,
         headers,
@@ -55,16 +69,21 @@ export class ForkCheckerApi {
     }
   };
 
-  getForks(timeFrame: number) {
+  async getForks(timeFrame: number): Promise<Array<Fork>> {
     const timeFrameWindow = Date.now() - timeFrame;
 
-    return this.call({
+    return await this.call({
       url: "/forks",
       data: {
         min_length: 5,
         updated_after: timeFrameWindow,
       },
-      method: "GET",
+    });
+  }
+
+  async getFork(forkId: string): Promise<Fork> {
+    return await this.call({
+      url: `/fork/${forkId}`,
     });
   }
 }

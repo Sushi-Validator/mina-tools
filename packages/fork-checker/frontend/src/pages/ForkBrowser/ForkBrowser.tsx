@@ -24,15 +24,39 @@ const defaultContext = {
   forkQuantity: 5,
   forkTimeFrame: TIMEFRAMES.ONE_WEEK,
   refreshTimer: TIMEFRAMES.ONE_MINUTE / 10,
+  incrementForkQuantity: () => {},
 };
 
-const ForkBrowserContext = createContext(defaultContext);
+type ForkBrowserProviderProps = {
+  children: React.ReactNode;
+};
+
+type ForkBrowserContextShape = {
+  forkQuantity: number;
+  forkTimeFrame: number;
+  refreshTimer: number;
+  incrementForkQuantity: () => void;
+  decrementForkQuantity: () => void;
+  setForkTimeFrame: (value: number) => void;
+  setRefreshTimer: (value: number) => void;
+  refresh: React.MutableRefObject<any>;
+};
+
+const ForkBrowserContext =
+  createContext<ForkBrowserContextShape | undefined>(undefined);
 
 export const useForkBrowserContext = () => {
-  return useContext(ForkBrowserContext);
+  const context = useContext(ForkBrowserContext);
+
+  if (context === undefined) {
+    throw new Error(
+      "useForkBrowserContext must be used within a ForkBrowserProvider"
+    );
+  }
+  return context;
 };
 
-const ForkBrowserProvider = ({ children }) => {
+const ForkBrowserProvider = ({ children }: ForkBrowserProviderProps) => {
   const [forkQuantity, setForkQuantity] = useState(defaultContext.forkQuantity);
   const [forkTimeFrame, setForkTimeFrame] = useState(
     defaultContext.forkTimeFrame
@@ -47,7 +71,7 @@ const ForkBrowserProvider = ({ children }) => {
     () => setForkQuantity(forkQuantity - 1),
     [forkQuantity]
   );
-  const refresh = useRef();
+  const refresh = useRef<{ current?: () => void }>();
 
   const contextValue = useMemo(() => {
     return {
@@ -125,12 +149,16 @@ function ToolBar() {
     refresh,
   } = useForkBrowserContext();
 
-  const handleForkTimeFrameSelect = (e) => {
-    setForkTimeFrame(e.target.value);
+  const handleForkTimeFrameSelect = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setForkTimeFrame(Number(e.target.value));
   };
 
-  const handleRefreshTimerSelect = (e) => {
-    setRefreshTimer(e.target.value);
+  const handleRefreshTimerSelect = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setRefreshTimer(Number(e.target.value));
   };
 
   return (
@@ -171,7 +199,7 @@ function ToolBar() {
   );
 }
 
-const useForkQuery = (timeFrame, refreshTimer) => {
+const useForksQuery = (timeFrame: number, refreshTimer: number) => {
   return useQuery(
     ["forks", timeFrame],
     async () => {
@@ -186,17 +214,17 @@ const useForkQuery = (timeFrame, refreshTimer) => {
 function ForkTable() {
   const { forkTimeFrame, refreshTimer, refresh, forkQuantity } =
     useForkBrowserContext();
-  const { data, refetch } = useForkQuery(forkTimeFrame, refreshTimer);
+  const { data, refetch } = useForksQuery(forkTimeFrame, refreshTimer);
 
   useEffect(() => {
     refresh.current = refetch;
   }, [refresh, refetch]);
 
   const forks = useMemo(() => {
-    const items = [];
+    const items: React.ReactNode[] = [];
 
     if (data) {
-      data.every((singleFork, index) => {
+      data.every((singleFork: any, index: number) => {
         if (index + 1 > forkQuantity) {
           return false;
         }

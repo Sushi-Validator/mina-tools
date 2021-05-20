@@ -4,140 +4,7 @@ import './App.css';
 import $ from 'jquery';
 import { Redirect, Route, BrowserRouter as Router, Switch } from 'react-router-dom';
 import { ForkBrowser } from './pages/ForkBrowser';
-
-// Will contain all of our visual fork data as a collection of HTML elements once Update() runs
-var forkTable = document.createElement("div");
-
-// This function will grab our fork data, organize it into divs, and then store it to a global variable for us to work with
-// TODO: Producer
-function Update(max: number, timeframe: number) {
-  let window = Date.now() - (timeframe * 1000);
-
-  let API = 'https://fork-checker-api-iyrf2hryca-uw.a.run.app/forks?';
-  let DEFAULT_QUERY = 'updated_after=' + window + '&min_length=5';
-$.ajax({
-    url: API + DEFAULT_QUERY,
-    async: true,
-    dataType: 'json',
-    success: function(data) {
-      $(function() {
-        console.log(data);
-        // Reset forkTable for new content
-        forkTable = document.createElement("div");
-        forkTable.id = "Fork-Table";
-        // Add each entry to its own div which will be contained within Fork-Table
-        for (var i = 0; i < data.length; i++) {
-          // Wrapper
-          /*-----------------------------------------------*\
-          | [TIMESTAMP]                                     |
-          |-------------------------------------------------|
-          | [LATEST FORK], BY [LATEST PRODUCER]             |
-          |-------------------------------------------------|
-          | [LENGTH] BLOCKS LONG, WITH [REWARDS] MINA LOST  |
-          \*-----------------------------------------------*/
-
-          let forkWrapper = document.createElement("div");
-          forkWrapper.className = "Fork-Wrapper";
-          forkWrapper.id = data[i].last_updated;
-          forkWrapper.classList.add("hidden");
-
-          // Timestamp
-          let forkTimestamp = document.createElement("div");
-          forkTimestamp.className = "Fork-Timestamp";
-          let timestamp = new Date(data[i].last_updated)
-          let localTimestamp = timestamp.toLocaleDateString('us-EN') + " at " + timestamp.toLocaleTimeString('us-EN');
-          forkTimestamp.innerText = localTimestamp;
-          forkWrapper.appendChild(forkTimestamp);
-
-          // Links
-          let forkLinks = document.createElement("div");
-          forkLinks.className = "Fork-Links";
-          let forkLatestLink = document.createElement("a");
-          let forkProducerLink = document.createElement("a");
-          let interemNode = document.createTextNode(", by ");
-          forkLatestLink.href = "/Fork?fork=" + data[i].id;
-          forkLatestLink.innerText = data[i].latest;
-          forkProducerLink.href = "/Producer?producer=WIP";
-          forkProducerLink.innerText = "Placeholder Producer";
-          forkLinks.appendChild(forkLatestLink);
-          forkLinks.appendChild(interemNode);
-          forkLinks.appendChild(forkProducerLink);
-          forkWrapper.appendChild(forkLinks);
-
-          // Details
-          let forkDetails = document.createElement("div");
-          forkDetails.className = "Fork-Details";
-          forkDetails.innerText = data[i].length + " blocks long, with " + data[i].rewards + " MINA lost."
-          forkWrapper.appendChild(forkDetails);
-
-          // Integration
-          forkTable.appendChild(forkWrapper);
-        };
-
-        // Update complete, now "refresh" our display
-        Refresh(max);
-      });
-    }
-  });
-}
-
-// Function to set as visible a limited number of our processed forks
-function Refresh(max: number) {
-  let forks = Array.from(forkTable.children);
-  // We need to reset the hidden status on all elements for cases with decrementing visibility
-  for (var i = 0; i < forks.length; i++) {
-    let caveman = forks[i] as HTMLElement;
-    caveman.classList.add("hidden");
-  }
-  // Now un-hide however many we need
-  for (i = 0; i < max; i++) {
-    let caveman = forks[i] as HTMLElement;
-    caveman.classList.remove("hidden");
-  }
-  // Remove the old fork div
-  if($("#Fork-Table")[0]) {
-    $("#Fork-Table").remove();
-  }
-  // ..And add our new one
-  $(forkTable).insertAfter($("#Fork-Header"))
-}
-
-// Update timeframe options for the API call. Forces a data refresh.
-function selector() {
-  let selection = $("#Fork-Timeframe").get(0) as HTMLSelectElement;
-  let counter = ($('#Fork-Quantity') as any).get(0)
-  let reloading = document.createElement("div");
-  reloading.id = "Fork-Table";
-  reloading.innerText = "Reloading..."
-  $("#Fork-Table").replaceWith(reloading);
-  Update(parseInt(counter.innerText), parseInt(selection.value));
-}
-
-// Timer, using the basic setInterval() function. Used for automated refresh of API data.
-// Starts initialized by default, in part so we have a handle to stop/modify it easily
-var refreshTimer = setInterval(selector, 300000);
-function resetTimer() {
-  let selection = $("#refreshTimer").get(0) as HTMLSelectElement;
-  let interval = parseInt(selection.value);
-  clearInterval(refreshTimer);
-  refreshTimer = setInterval(selector, interval);
-}
-
-// Counter modifier - this exists solely so we can use pretty buttons rather than an ugly stock input interface
-function counter(increment: Boolean = true) {
-  let counter = ($('#Fork-Quantity') as any).get(0);
-  let forks = Array.from(forkTable.children); // Used to set our upper display limit
-  // Increase counter by default; cap is arbitrarily set to 25
-  if (increment) {
-    counter.innerText = (counter.innerText++ > forks.length - 1) ? forks.length : counter.innerText++;
-    Refresh(counter.innerText);
-  }
-  // Decrement otherwise; don't allow counter to drop below 1
-  else {
-    counter.innerText = (counter.innerText-- < 2) ? 1 : counter.innerText--;
-    Refresh(counter.innerText);
-  }
-}
+import { SingleFork } from './pages/SingleFork';
 
 // Fetch URL queries and their value by key
 function GetParameter(parameter: String) {
@@ -200,7 +67,7 @@ function Details(parameter: any) {
         forkDetails.innerText = "Viewing Fork with latest block = " + data[0].latest + "\n Under Construction";
         forkWrapper.appendChild(forkDetails);
       });
-      Refresh(data.length);
+      // Refresh(data.length);
     }
   });
 }
@@ -224,29 +91,15 @@ const Index = () => (
         <Route exact path="/">
           <ForkBrowser />
         </Route>
+        <Route path="/fork/:forkId">
+          <SingleFork />
+        </Route>
       </Switch>
       {/* <Route path="/fork" component={ Fork } />
       <Route path="/producer" component={ Producer } /> */}
     </Router>
   </div>
 );
-
-// Fork page
-// TODO: Decide on display/organizational layout for page/data and implement
-const Fork = () => {
-  let forkID = GetParameter('fork');
-  return (
-    <div className="App">
-      <Router>
-        <Route path="/index" component={ Index } />
-      </Router>
-      <header className="App-header">
-        <div id="Fork-Table">Loading...</div>
-        {Details(forkID)}
-      </header>
-    </div>
-  )
-};
 
 // Producer page
 // Huge TODO
