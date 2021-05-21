@@ -8,7 +8,6 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sys
 import time
 
 
@@ -63,11 +62,9 @@ def blockmap(input_blocks):
     # We instantiate our graph mapping within this method, since it's the method for populating it as well.
     g = Graph()
     vertices = {}
-    vertex_hash = g.new_vertex_property('string')
-    vertex_canon = g.new_vertex_property('bool')
-    vertex_color = g.new_vertex_property('vector<double>')
-    g.vertex_properties['vertex_canon'] = vertex_canon
-    g.vertex_properties['vertex_color'] = vertex_color
+    g.vertex_properties["vertex_hash"] = g.new_vertex_property('string')
+    g.vertex_properties["vertex_canon"] = g.new_vertex_property('bool')
+    g.vertex_properties["vertex_color"] = g.new_vertex_property('vector<double>')
 
     # Iterate through parsed blocks and add each one to the graph_tools graph as a vertex
     for state_hash in __builtins__.list(input_blocks.keys()):
@@ -76,32 +73,32 @@ def blockmap(input_blocks):
         if state_hash not in vertices:
             vertices[state_hash] = g.add_vertex()
             # Store the block hash within the vertex_hash property for later use
-            vertex_hash[vertices[state_hash]] = state_hash
+            g.vertex_properties["vertex_hash"][vertices[state_hash]] = state_hash
         if previous_state_hash not in vertices:
             vertices[previous_state_hash] = g.add_vertex()
             # Store block hash as above for previous block
-            vertex_hash[vertices[previous_state_hash]] = previous_state_hash
+            g.vertex_properties["vertex_hash"][vertices[previous_state_hash]] = previous_state_hash
         g.add_edge(vertices[state_hash], vertices[previous_state_hash])
     sfdp_layout(g, p=4)
 
     # Because we create several variables that other functions need access to here, return them all as a tuple
-    return g, vertex_hash, vertex_canon, vertex_color
+    return g
 
 
 # Step through the graph representation of blocks to determine the canonical "head" of the blockchain.
 # Requires the blockchain to be mapped with the blockmap() function.
-def canon(input_blocks, g, vertex_hash):
+def canon(input_blocks, g):
     # Iterate through the blockchain and check each block's block height to find the "highest" one, which is canon
     def heightCompare(blockList):
         chainResult = ('', 0)
         longest = 0
         for index, hblock in enumerate(blockList):
             length = int(
-                input_blocks[vertex_hash[hblock]]["protocol_state"]["body"]["consensus_state"][
+                input_blocks[g.vertex_properties["vertex_hash"][hblock]]["protocol_state"]["body"]["consensus_state"][
                     "global_slot_since_genesis"])
             if length > longest:
                 longest = length
-                chainResult = (vertex_hash[hblock], hblock)
+                chainResult = (g.vertex_properties["vertex_hash"][hblock], hblock)
         return chainResult
 
     in_degrees = g.get_in_degrees(g.get_vertices())
@@ -113,53 +110,46 @@ def canon(input_blocks, g, vertex_hash):
     return heightCompare(endpoints), endpoints
 
 
-# Recursive crawl used by the paint() function to mark nodes as canonical, using a starting known canonical block.
+# Loop used by the paint() function to mark nodes as canonical, using a starting known canonical block.
 # This probably shouldn't be called ever outside of its usage in the paint() function
-def colorCrawl(index, g, vertex_canon, vertex_color):
-    blue = (0, 0, 1, 1)
-    green = (0, 1, 0, 1)
-    node = g.vertex(index)
-    # Since this function is called along the canon pathway, all blocks we encounter must also be canon and marked so
-    vertex_color[node] = green
-    vertex_canon[node] = True
-    # If there are no more "previous blocks" for a given block, we have arrived at the genesis block
-    if sum(1 for _ in node.out_neighbors()) == 0:
-        vertex_color[node] = blue
-        return 0
-    # If not at the genesis node, repeat
-    for neighbor in node.out_neighbors():
-        return colorCrawl(neighbor, g, vertex_canon, vertex_color)
+def colorCrawl(canonNode, g):
+    node = g.vertex(canonNode)
+    g.vertex_properties["vertex_canon"][node] = True
+    for _ in g.get_vertices():
+        # Exit this loop early once we reach the end of the canonical chain
+        if node.out_degree() == 0:
+            return 0
+        # Set our working node to the next neighbor in line
+        for neighbor in node.out_neighbors():
+            node = g.vertex(neighbor)
+        # Set our node as canon
+        g.vertex_properties["vertex_canon"][node] = True
 
 
 # "Paints" nodes on the map depending on their canonical status. This includes both literal color and a bool flag.
 # Requires the canonical "head" of the blockchain to be found using the canon() function.
-def paint(input_canon, g, vertex_canon, vertex_color):
-    red = (1, 0, 0, 1)
+def paint(input_canon, g):
     # Mark every node as non-canon initially
     for v in g.vertices():
-        vertex_color[v] = red
-        vertex_canon[v] = False
-
-    sys.setrecursionlimit(1000000)
-    # Mark canon nodes as canon - recursion limit must be extremely high since each block is a new recursion loop
-    colorCrawl(input_canon[1], g, vertex_canon, vertex_color)
-    sys.setrecursionlimit(1000)
+        g.vertex_properties["vertex_canon"][v] = False
+    # Mark canon nodes as canon
+    colorCrawl(input_canon[1], g)
 
 
 # Processes the entire blockchain using its graph representation to build a collection of all known forks.
 # Requires the blockchain's force-directed graph representation to be painted with the paint() function.
-def fork_process(endpoints, g, vertex_canon, vertex_hash):
+def fork_process(endpoints, g):
     forks = []
 
     # For each fork, add each block to an array, and continue adding until our fork returns to the canonical chain
     # This array of forked blocks is then added back to our main 'fork' array
     def forkCrawl(fblock, fcontainer):
         node = g.vertex(fblock)
-        if vertex_canon[node]:
+        if g.vertex_properties["vertex_canon"][node]:
             forks.append(fcontainer)
             return 0
         else:
-            fcontainer.append(vertex_hash[node])
+            fcontainer.append(g.vertex_properties["vertex_hash"][node])
             for neighbor in node.out_neighbors():
                 return forkCrawl(neighbor, fcontainer)
 
@@ -177,20 +167,19 @@ def stage(forks, blocks):
     staging = {}
     for fork in forks:
         # 'staged_fork' contains all data for a given fork
-        staged_fork = {"length": len(fork), "blocks": [], "creators": [], "rewards": 0, "latest": '', "last_updated": 0}
+        staged_fork = {"length": len(fork), "blocks": {"block": [], "creator": []}, "creators": [], "rewards": 0,
+                       "latest": '', "last_updated": 0}
         initialized = False
         fork_root = ""
         for block in fork:
             # Blocks in fork inserted such that oldest block is at index 0
-            staged_fork["blocks"].insert(0, block)
+            staged_fork["blocks"]["block"].insert(0, block)
+            staged_fork["blocks"]["creator"].insert(0, blocks[block]["protocol_state"]["body"]["consensus_state"][
+                "block_creator"])
             # Set local variable to the oldest block hash for use later in creating unique ID hash
             if not initialized:
                 fork_root = block
                 initialized = True
-            # Add block creator to respective array if not already present
-            pending_creator = blocks[block]["protocol_state"]["body"]["consensus_state"]["block_creator"]
-            if pending_creator not in staged_fork["creators"]:
-                staged_fork["creators"].append(pending_creator)
             # Add 1440 mina to "lost rewards" if the block is supercharged, otherwise 720
             if blocks[block]["protocol_state"]["body"]["consensus_state"]["supercharge_coinbase"]:
                 staged_fork["rewards"] += 1440
@@ -244,24 +233,30 @@ def powercycle(printout=False):
     end = time.time()
     if printout:
         print(f"Parsed {len(blocks.keys())} Blocks in {end - start} seconds.")
-    g, vertex_hash, vertex_canon, vertex_color = blockmap(blocks)
+
+    # Map Blocks
+    start = time.time()
+    g = blockmap(blocks)
+    end = time.time()
+    if printout:
+        print(f"Mapped all blocks in {end - start} seconds.")
 
     # Determine canonical head and endpoints
     start = time.time()
-    canonical, endpoints = canon(blocks, g, vertex_hash)
+    canonical, endpoints = canon(blocks, g)
     end = time.time()
     if printout:
         print(f"Found canonical chain using blockchain data at Node {canonical[1]} in {end - start} seconds.")
 
     # Determine canonical status of entire blockchain using canonical head information
     start = time.time()
-    paint(canonical, g, vertex_canon, vertex_color)
+    paint(canonical, g)
     end = time.time()
     if printout:
         print(f"Recursively painted canonical chain in {end - start} seconds.")
 
     # Sort forked blocks into arrays of unique forks
-    forks = fork_process(endpoints, g, vertex_canon, vertex_hash)
+    forks = fork_process(endpoints, g)
     if printout:
         print(f"Processed {len(forks)} forks.")
 
