@@ -32,7 +32,14 @@
 }
 
 #Toolbar-Wrapper {
+  user-select: none;
   text-align: center;
+  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5))
+}
+
+#SingleFork-Toolbar-Wrapper {
+  text-align: left;
+  padding: 5px 10px 5px 10px;
   background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5))
 }
 
@@ -41,7 +48,7 @@
 }
 
 .counterWrapper button {
-  color: #c8c5d1;
+  color: gainsboro;
   font-size: 16px;
   background-color: transparent;
   border: none;
@@ -60,7 +67,6 @@
   background-color: transparent;
   background-size: cover;
   background-image: url("data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9JzMwMHB4JyB3aWR0aD0nMzAwcHgnICBmaWxsPSIjMDAwMDAwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2ZXJzaW9uPSIxLjEiIHg9IjBweCIgeT0iMHB4IiB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgMTAwIDEwMCIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHBhdGggZD0iTTI1LDQ5YzAsMTQuMzM3LDExLjY2MywyNiwyNiwyNnMyNi0xMS42NjMsMjYtMjZjMC02LjQ5OS0yLjQxMS0xMi43Mi02Ljc4OC0xNy41MThjLTAuOTMxLTEuMDIxLTIuNTEzLTEuMDk0LTMuNTMxLTAuMTYyICBjLTEuMDIxLDAuOTMxLTEuMDkzLDIuNTEyLTAuMTYyLDMuNTMxQzcwLjA1NCwzOC43MjcsNzIsNDMuNzUxLDcyLDQ5YzAsMTEuNTc5LTkuNDIxLDIxLTIxLDIxcy0yMS05LjQyMS0yMS0yMSAgYzAtMTAuNzc4LDguMTY2LTE5LjY3NiwxOC42MzMtMjAuODU3bC0yLjUyMSwyLjc1MWMtMC45MzQsMS4wMTktMC44NjQsMi42LDAuMTUzLDMuNTMyYzAuNDgsMC40NCwxLjA4NSwwLjY1NywxLjY4OCwwLjY1NyAgYzAuNjc3LDAsMS4zNTEtMC4yNzIsMS44NDQtMC44MTFsNi45ODYtNy42MjNjMC41MDMtMC41NDksMC43MzUtMS4yOTIsMC42MzQtMi4wMjljLTAuMTAxLTAuNzM2LTAuNTI0LTEuMzktMS4xNTYtMS43ODMgIGwtOC43NzktNS40NjNjLTEuMTY5LTAuNzI3LTIuNzEzLTAuMzctMy40NDMsMC44MDNjLTAuNzI5LDEuMTcyLTAuMzcsMi43MTQsMC44MDMsMy40NDNsMi42MTYsMS42MjhDMzQuNzkxLDI0Ljk4MiwyNSwzNS44NjUsMjUsNDkgIHoiPjwvcGF0aD48L3N2Zz4=");
-  transform: translate(5px, -5px);
   filter: invert(100%);
 }
 
@@ -69,7 +75,7 @@
 }
 
 #Fork-Timeframe, #refreshTimer {
-  color: #c8c5d1;
+  color: gainsboro;
   text-align: center;
   background-color: transparent;
   font-family: "Open Sans";
@@ -88,29 +94,91 @@
   background-color: #282923;
 }
 
+#SingleFork-Refresh {
+  float: right;
+}
+
 
 /* FORKS */
 .Fork-Table {
-  position:absolute;
 }
 
-.Fork-Wrapper {
-  float: center;
+.Fork-Wrapper, .Block-Wrapper {
   text-align: left;
   padding : 10px;
-  margin: 10px;
+  margin: 10px auto;
+  max-width: 1000px;
   background-color: #0c0c0d;
-  /*user-select: none;*/
   box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20); /* Stacked box shadows, pseudo-Material */
 }
 
-.Fork-Timestamp {
+.Fork-Timestamp, .Block-Timestamp {
   font-size: 12px;
+  user-select: none;
 }
 
 .Fork-Details {
   text-align: center; 
+}
 
+.SingleFork-Blurbs {
+  justify-content: center;
+  align-items: center;
+  display: flex;
+}
+
+.SingleFork-Title {
+  width: 530px;
+  background-color: #0c0c0d;
+  padding: 10px;
+  margin: 10px auto 0 auto;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20);
+}
+
+.SingleFork-SubTitle {
+  color: grey;
+  user-select: none;
+}
+
+.SingleFork-Length, .SingleFork-Producers, .SingleFork-Losses {
+  user-select: none;
+  background-color: #0c0c0d;
+  min-width: 150px;
+  min-height: 100px;
+  padding: 10px;
+  margin: 10px 10px 0;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20);
+}
+
+.SingleFork-SubNum, .SingleFork-SubText {
+  margin-top: 10%;
+  display: flex;
+  justify-content: center;
+}
+
+.SingleFork-SubNum {
+  color: orange;
+}
+
+.SingleFork-SubText {
+  font-weight: bold;
+}
+
+.Block-Hash, .Block-Creator {
+
+}
+
+.Block-Details {
+  user-select: none;
+  color: grey;
+}
+
+.Block-Friends {
+  margin-left: 10px;
+  font-size: 12px;
+}
+
+.Block-Hash, .Block-Creator {
 }
 
 .hidden {
@@ -120,30 +188,33 @@
 
 /* LINKS, ALL */
 a:link { /* Standard Link */
-  color: #c8c5d1;
-  /*text-decoration: none;*/
+  user-select: none;
+  color: gainsboro;
   font-style: italic;
 }
 
 a:visited { /* Visited link */
-  color:#c8c5d1;
+  color: gainsboro;
 }
 
 a:hover { /* Mouse-over link */
-  color:#666666;
+  color: grey;
 }
 
 a:active { /* Selected link */
-  color:#333333;
+  color: dimgrey;
 }
 
 
 /* REACT STUFF */
+body {
+  background-color: #282923;
+}
+
 .App {
   min-height: 100vh;
   font-family: 'Open Sans', sans-serif;
-  color: #c8c5d1;
-  background-color: #282923;
+  color: gainsboro;
   text-align: center;
 }
 

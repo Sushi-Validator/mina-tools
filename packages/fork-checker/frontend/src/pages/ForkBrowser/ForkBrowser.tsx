@@ -183,18 +183,18 @@ function ToolBar() {
       </select>
       <span className="refreshWrapper">
         <button onClick={refresh?.current} id="refreshButton"></button>
-        <select
-          onChange={handleRefreshTimerSelect}
-          id="refreshTimer"
-          value={refreshTimer}
-        >
-          {refreshOptions.map(({ value, label }) => (
-            <option className="option" value={value} key={value}>
-              {label}
-            </option>
-          ))}
-        </select>
       </span>
+      <select
+        onChange={handleRefreshTimerSelect}
+        id="refreshTimer"
+        value={refreshTimer}
+      >
+        {refreshOptions.map(({ value, label }) => (
+          <option className="option" value={value} key={value}>
+            {label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
