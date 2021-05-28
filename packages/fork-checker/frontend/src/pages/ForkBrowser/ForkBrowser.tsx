@@ -10,7 +10,8 @@ import React, {
 import { useQuery } from "react-query";
 import { Link } from "react-router-dom";
 
-import { forkCheckerApi } from "../../api";
+import { forkCheckerApi } from "../../api/fork";
+import { explorerApi } from "../../api/explorer";
 
 const TIMEFRAMES = {
   ONE_MINUTE: 1000 * 60,
@@ -21,8 +22,8 @@ const TIMEFRAMES = {
 };
 
 const defaultContext = {
-  forkQuantity: 5,
-  forkTimeFrame: TIMEFRAMES.ONE_WEEK,
+  forkQuantity: 10,
+  forkTimeFrame: TIMEFRAMES.ONE_MONTH,
   refreshTimer: TIMEFRAMES.ONE_MINUTE / 10,
   incrementForkQuantity: () => {},
 };
@@ -211,10 +212,15 @@ const useForksQuery = (timeFrame: number, refreshTimer: number) => {
   );
 };
 
+const useSummaryQuery = () => {
+  return useQuery([], () => explorerApi.getSummary());
+}
+
 function ForkTable() {
   const { forkTimeFrame, refreshTimer, refresh, forkQuantity } =
     useForkBrowserContext();
   const { data, refetch } = useForksQuery(forkTimeFrame, refreshTimer);
+  const summary = useSummaryQuery();
 
   useEffect(() => {
     refresh.current = refetch;
@@ -222,6 +228,35 @@ function ForkTable() {
 
   const forks = useMemo(() => {
     const items: React.ReactNode[] = [];
+
+    if (summary) {
+      // Refactor this
+      const sum = JSON.parse(JSON.stringify(summary)).data;
+      if (sum) {
+        items.push(
+          <div className="Summary-Wrapper" key={0}>
+            <div className="Summary-Blurbs">
+              <div className="Blurb-Header" id="Summary-Length">
+                <div className="Blurb-SubNum">{Number(sum.blockchainLength).toLocaleString()}</div>
+                <div className="Blurb-SubText">Blockchain Length</div>
+              </div>
+              <div className="Blurb-Header" id="Summary-Epoch">
+                <div className="Blurb-SubNum">{sum.epoch}</div>
+                <div className="Blurb-SubText">Current Epoch</div>
+              </div>
+              <div className="Blurb-Header" id="Summary-Currency">
+                <div className="Blurb-SubNum">{Number(sum.totalCurrency.split('./[1-9]/')[0]).toLocaleString()}</div>
+                <div className="Blurb-SubText">Total Currency</div>
+              </div>
+              <div className="Blurb-Header" id="Summary-Locked">
+                <div className="Blurb-SubNum">{Number(sum.lockedSupply.split('./[1-9]/')[0]).toLocaleString()}</div>
+                <div className="Blurb-SubText">Locked Supply</div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
 
     if (data) {
       data.every((singleFork: any, index: number) => {
@@ -232,7 +267,7 @@ function ForkTable() {
         const timestamp = new Date(last_updated);
 
         return items.push(
-          <div className="Fork-Wrapper" key={index}>
+          <div className="Fork-Wrapper" key={index+1}>
             <div className="Fork-Timestamp">
               {timestamp.toLocaleDateString("us-EN") +
                 " at " +
@@ -250,7 +285,7 @@ function ForkTable() {
     }
 
     return items;
-  }, [data, forkQuantity]);
+  }, [data, forkQuantity, summary]);
 
   return <div id="Fork-Table">{forks}</div>;
 }

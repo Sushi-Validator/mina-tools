@@ -9,7 +9,7 @@
 /* NOTE: Dropdowns will likely need to be replaced soon as they're particularly resistant to styling on a number of browsers */
 #Fork-Header {
   width: 100%;
-  min-height: 300px;
+  min-height: 200px;
   background-size: cover;
   background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url("https://lithi.io/file/Q8du.jpg") no-repeat center center fixed;
   background-attachment: fixed;
@@ -21,7 +21,7 @@
 #Logo {
   color: #FFF;
   text-align: center;
-  padding-top: 50px;
+  padding-top: 0px;
   font-family: "Oswald", sans-serif;
   font-size: 80px;
 }
@@ -121,7 +121,7 @@
   text-align: center; 
 }
 
-.SingleFork-Blurbs {
+.SingleFork-Blurbs, .Summary-Blurbs {
   justify-content: center;
   align-items: center;
   display: flex;
@@ -140,7 +140,7 @@
   user-select: none;
 }
 
-.SingleFork-Length, .SingleFork-Producers, .SingleFork-Losses {
+.Blurb-Header {
   user-select: none;
   background-color: #0c0c0d;
   min-width: 150px;
@@ -150,17 +150,17 @@
   box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.20);
 }
 
-.SingleFork-SubNum, .SingleFork-SubText {
+.Blurb-SubNum, .Blurb-SubText {
   margin-top: 10%;
   display: flex;
   justify-content: center;
 }
 
-.SingleFork-SubNum {
+.Blurb-SubNum {
   color: orange;
 }
 
-.SingleFork-SubText {
+.Blurb-SubText {
   font-weight: bold;
 }
 
