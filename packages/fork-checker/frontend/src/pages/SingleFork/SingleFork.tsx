@@ -52,7 +52,7 @@ function SingleFork() {
   	  	    </div>
   	  	    <div className="Blurb-Header" id="SingleFork-Rewards">
   	  	      <div className="Blurb-SubNum">{blocksList.rewards}</div>
-  	  	      <div className="Blurb-SubText">Missed Rewards</div>
+  	  	      <div className="Blurb-SubText">Unrealized Rewards</div>
   	  	    </div>
   	  	  </div>
   	  	</div>

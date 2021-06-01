@@ -2,16 +2,18 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { useTable, /*useSortBy, usePagination*/ } from 'react-table';
 import { useQuery } from "react-query";
-import { Link } from "react-router-dom";
+//import { Link } from "react-router-dom";
 
 import { forkCheckerApi } from "../../api/fork";
 import { explorerApi } from "../../api/explorer";
+
+// CONTEXT
 
 const TIMEFRAMES = {
   ONE_MINUTE: 1000 * 60,
@@ -138,6 +140,8 @@ const refreshOptions = [
   },
 ];
 
+// TOOLBAR
+
 function ToolBar() {
   const {
     forkQuantity,
@@ -216,21 +220,14 @@ const useSummaryQuery = () => {
   return useQuery([], () => explorerApi.getSummary());
 }
 
-function ForkTable() {
-  const { forkTimeFrame, refreshTimer, refresh, forkQuantity } =
-    useForkBrowserContext();
-  const { data, refetch } = useForksQuery(forkTimeFrame, refreshTimer);
+// BLURBS
+
+function ForkBlurbs() {
   const summary = useSummaryQuery();
 
-  useEffect(() => {
-    refresh.current = refetch;
-  }, [refresh, refetch]);
-
-  const forks = useMemo(() => {
+  const blurbs = useMemo(() => {
     const items: React.ReactNode[] = [];
-
     if (summary) {
-      // Refactor this
       const sum = JSON.parse(JSON.stringify(summary)).data;
       if (sum) {
         items.push(
@@ -257,43 +254,110 @@ function ForkTable() {
         );
       }
     }
-
-    if (data) {
-      data.every((singleFork: any, index: number) => {
-        if (index + 1 > forkQuantity) {
-          return false;
-        }
-        const { last_updated, id, latest, length, rewards } = singleFork;
-        const timestamp = new Date(last_updated);
-
-        return items.push(
-          <div className="Fork-Wrapper" key={index+1}>
-            <div className="Fork-Timestamp">
-              {timestamp.toLocaleDateString("us-EN") +
-                " at " +
-                timestamp.toLocaleTimeString("us-EN")}
-            </div>
-            <div className="Fork-Links">
-              <Link to={`/fork/${id}`}>{latest}</Link>
-            </div>
-            <div className="Fork-Details">
-              {length + " blocks long, with " + rewards + " MINA lost."}
-            </div>
-          </div>
-        );
-      });
-    }
-
     return items;
-  }, [data, forkQuantity, summary]);
+  }, [summary]);
+  return <div id="Summary-Blurbs">{blurbs}</div>
+}
 
-  return <div id="Fork-Table">{forks}</div>;
+// TABLE
+
+// TODO: Determine why usePagination and useSortBy are causing React to exceed maximum update depth, then impliment them 
+
+function BuildForkTable(data: {}[]) {
+
+  const tableColumns = useMemo(() => [
+    {
+      Header: 'Date',
+      accessor: 'last_updated',
+      //Cell: ({ value }) => value.toLocaleDateString("us-EN")
+    },
+    {
+      Header: 'Fork Length',
+      accessor: 'length'
+    },
+    {
+      Header: 'Latest Block',
+      accessor: 'latest',
+      //Cell: ({ row }) => (<Link to={{ pathname: `/fork/${row.id}` }}>{row.latest}</Link>)
+    },
+    {
+      Header: 'Unrealized Rewards',
+      accessor: 'rewards'
+    }
+  ],[])
+
+  const 
+  {
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    rows,
+    prepareRow,
+  } = useTable ({
+    columns: tableColumns,
+    data
+  },
+  //usePagination
+  //useSortBy
+  )
+
+  return (
+    <>
+      <div className="ForkTable">
+        <table {...getTableProps()}>
+          <thead>
+            {headerGroups.map((headerGroup, index) => (
+              <tr {...headerGroup.getHeaderProps} key={index}>
+                {headerGroup.headers.map(column => (
+                  <th {...column.getHeaderProps(/*column.getSortByToggleProps()*/)}>
+                    {column.render('Header')}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody {...getTableBodyProps()}>
+            {rows.map(row => {
+              prepareRow(row)
+              return (
+                <tr {...row.getRowProps()}>
+                  {row.cells.map(cell => {
+                    return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
+                  })}
+                </tr>
+            )})}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+
+function ForkTable() {
+  const { forkTimeFrame, refreshTimer } =
+    useForkBrowserContext();
+  const { data } = useForksQuery(forkTimeFrame, refreshTimer);
+  // Temp data - displays an empty table while waiting for the axios response to finish
+  const data_empty = [{
+    'last_updated': '',
+    'length': '',
+    'latest': '',
+    'rewards': ''
+  }]
+
+  if (data) {
+      const data_json = JSON.parse(JSON.stringify(data));
+      return BuildForkTable(data_json);
+    }
+    return BuildForkTable(data_empty);
 }
 
 function ForkBrowser() {
   return (
     <ForkBrowserProvider>
       <ToolBar />
+      <ForkBlurbs />
       <ForkTable />
     </ForkBrowserProvider>
   );
