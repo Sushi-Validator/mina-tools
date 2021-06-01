@@ -237,6 +237,10 @@ function ForkBlurbs() {
                 <div className="Blurb-SubNum">{Number(sum.blockchainLength).toLocaleString()}</div>
                 <div className="Blurb-SubText">Blockchain Length</div>
               </div>
+              <div className="Blurb-Header" id="Summary-Slot">
+                <div className="Blurb-SubNum">{Number(sum.globalSlot).toLocaleString()}</div>
+                <div className="Blurb-SubText">Current Slot</div>
+              </div>
               <div className="Blurb-Header" id="Summary-Epoch">
                 <div className="Blurb-SubNum">{sum.epoch}</div>
                 <div className="Blurb-SubText">Current Epoch</div>
