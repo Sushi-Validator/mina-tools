@@ -6,9 +6,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useTable, /*useSortBy, usePagination*/ } from 'react-table';
+import { useTable, useSortBy, usePagination } from 'react-table';
 import { useQuery } from "react-query";
-//import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { forkCheckerApi } from "../../api/fork";
 import { explorerApi } from "../../api/explorer";
@@ -144,9 +144,9 @@ const refreshOptions = [
 
 function ToolBar() {
   const {
-    forkQuantity,
-    incrementForkQuantity,
-    decrementForkQuantity,
+    //forkQuantity,
+    //incrementForkQuantity,
+    //decrementForkQuantity,
     forkTimeFrame,
     setForkTimeFrame,
     refreshTimer,
@@ -168,13 +168,7 @@ function ToolBar() {
 
   return (
     <div id="Toolbar-Wrapper">
-      Displaying&nbsp;
-      <span className="counterWrapper">
-        <button onClick={decrementForkQuantity}>–</button>
-        <span id="Fork-Quantity">{forkQuantity}</span>
-        <button onClick={incrementForkQuantity}>+</button>
-      </span>
-      &nbsp;most recent forks from within the past&nbsp;
+      Displaying forks from within the past&nbsp;
       <select
         onChange={handleForkTimeFrameSelect}
         id="Fork-Timeframe"
@@ -267,43 +261,78 @@ function ForkBlurbs() {
 
 // TODO: Determine why usePagination and useSortBy are causing React to exceed maximum update depth, then impliment them 
 
-function BuildForkTable(data: {}[]) {
+function BuildForkTable(promise: any) {
 
   const tableColumns = useMemo(() => [
     {
       Header: 'Date',
       accessor: 'last_updated',
-      //Cell: ({ value }) => value.toLocaleDateString("us-EN")
+      Cell: (row:any) => {
+        const timestamp = new Date(row.value)
+        if (timestamp instanceof Date && !isNaN(timestamp.getTime())){
+          return timestamp.toLocaleDateString();
+        }
+        return '';
+      }
     },
     {
       Header: 'Fork Length',
-      accessor: 'length'
+      accessor: 'length',
     },
     {
-      Header: 'Latest Block',
-      accessor: 'latest',
-      //Cell: ({ row }) => (<Link to={{ pathname: `/fork/${row.id}` }}>{row.latest}</Link>)
+      Header: 'Fork ID',
+      accessor: 'id',
+      Cell: (row:any) => (<Link to={{ pathname: `/fork/${row.value}` }}>{row.value}</Link>)
     },
     {
-      Header: 'Unrealized Rewards',
-      accessor: 'rewards'
+      Header: 'Unrealized Rewards ',
+      accessor: 'rewards',
+      Cell: (row:any) => {
+        const rewards = Number(row.value).toLocaleString()
+        if (rewards === "0"){
+          return '';
+        }
+        return rewards;
+      }
     }
   ],[])
+
+  const memoData = useMemo(() => {
+    if(promise){
+      return JSON.parse(JSON.stringify(promise))
+    }
+    return [{
+      'last_updated': '',
+      'length': '',
+      'latest': '',
+      'rewards': ''
+    }]
+  }, [promise]);
 
   const 
   {
     getTableProps,
     getTableBodyProps,
     headerGroups,
-    rows,
+    page,
+    nextPage,
+    previousPage,
+    canNextPage,
+    canPreviousPage,
+    pageOptions,
+    setPageSize,
+    state,
     prepareRow,
   } = useTable ({
     columns: tableColumns,
-    data
+    data: memoData,
+    initialState: { pageIndex : 0 }
   },
-  //usePagination
-  //useSortBy
-  )
+  useSortBy,
+  usePagination,
+  );
+
+  const { pageIndex, pageSize } = state;
 
   return (
     <>
@@ -313,15 +342,18 @@ function BuildForkTable(data: {}[]) {
             {headerGroups.map((headerGroup, index) => (
               <tr {...headerGroup.getHeaderProps} key={index}>
                 {headerGroup.headers.map(column => (
-                  <th {...column.getHeaderProps(/*column.getSortByToggleProps()*/)}>
+                  <th {...column.getHeaderProps(column.getSortByToggleProps())}>
                     {column.render('Header')}
+                    <span>
+                      {column.isSorted ? (column.isSortedDesc ? ' ⏷' : ' ⏶') : ' ⠀'/* This last one is unicode character U+2800, not a space */}
+                    </span>
                   </th>
                 ))}
               </tr>
             ))}
           </thead>
           <tbody {...getTableBodyProps()}>
-            {rows.map(row => {
+            {page.map(row => {
               prepareRow(row)
               return (
                 <tr {...row.getRowProps()}>
@@ -332,29 +364,40 @@ function BuildForkTable(data: {}[]) {
             )})}
           </tbody>
         </table>
+        <div className="TableFooter">
+          <span className="TableNav">
+            <button onClick={() => previousPage()} disabled={!canPreviousPage}>{'<<'}</button>
+            <span>
+              {' Page '}
+              <strong>
+                {pageIndex + 1 + " of " + pageOptions.length + ' '}
+              </strong>
+            </span>
+            <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
+              {
+                [10, 25, 50].map((pageSize) => (
+                  <option className="option" key={pageSize} value={pageSize}>
+                    Show {pageSize}
+                  </option>
+                ))
+              }
+            </select>
+            <button onClick={() => nextPage()} disabled={!canNextPage}>{'>>'}</button>
+          </span>
+        </div>
       </div>
     </>
   );
 }
 
 
+
+
 function ForkTable() {
   const { forkTimeFrame, refreshTimer } =
     useForkBrowserContext();
   const { data } = useForksQuery(forkTimeFrame, refreshTimer);
-  // Temp data - displays an empty table while waiting for the axios response to finish
-  const data_empty = [{
-    'last_updated': '',
-    'length': '',
-    'latest': '',
-    'rewards': ''
-  }]
-
-  if (data) {
-      const data_json = JSON.parse(JSON.stringify(data));
-      return BuildForkTable(data_json);
-    }
-    return BuildForkTable(data_empty);
+  return BuildForkTable(data);
 }
 
 function ForkBrowser() {
