@@ -270,7 +270,7 @@ function BuildForkTable(promise: any) {
       Cell: (row:any) => {
         const timestamp = new Date(row.value)
         if (timestamp instanceof Date && !isNaN(timestamp.getTime())){
-          return timestamp.toLocaleDateString();
+          return timestamp.toLocaleDateString() + ' ' + timestamp.toLocaleTimeString();
         }
         return '';
       }
