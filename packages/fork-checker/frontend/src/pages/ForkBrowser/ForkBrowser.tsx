@@ -46,6 +46,11 @@ type ForkBrowserContextShape = {
   refresh: React.MutableRefObject<any>;
 };
 
+interface ForkTableData extends Fork {
+  updatedDate: string;
+  rewardString: string;
+}
+
 const ForkBrowserContext =
   createContext<ForkBrowserContextShape | undefined>(undefined);
 
@@ -270,27 +275,33 @@ function ForkBlurbs() {
   return <div id="Summary-Blurbs">{blurbs}</div>;
 }
 
+const formatLastUpdated = (value: number): string => {
+  const timestamp = new Date(value);
+
+  return `${timestamp.toLocaleDateString()} ${timestamp.toLocaleTimeString()}`;
+};
+
 // TABLE
 
 // TODO: Determine why usePagination and useSortBy are causing React to exceed maximum update depth, then impliment them
 
 function ForkTable({ data }: { data: Fork[] }) {
-  const tableColumns = useMemo<Column<Fork>[]>(
+  const tableData = useMemo<ForkTableData[]>(() => {
+    return data.map((singleFork) => ({
+      ...singleFork,
+      updatedDate: formatLastUpdated(singleFork.last_updated),
+      rewardString:
+        singleFork.rewards > 0
+          ? Number(singleFork.rewards).toLocaleString()
+          : "",
+    }));
+  }, [data]);
+
+  const tableColumns = useMemo<Column<ForkTableData>[]>(
     () => [
       {
         Header: "Date",
-        accessor: "last_updated",
-        Cell: (row: any) => {
-          const timestamp = new Date(row.value);
-          if (timestamp instanceof Date && !isNaN(timestamp.getTime())) {
-            return (
-              timestamp.toLocaleDateString() +
-              " " +
-              timestamp.toLocaleTimeString()
-            );
-          }
-          return "";
-        },
+        accessor: "updatedDate",
       },
       {
         Header: "Fork Length",
@@ -305,14 +316,7 @@ function ForkTable({ data }: { data: Fork[] }) {
       },
       {
         Header: "Unrealized Rewards ",
-        accessor: "rewards",
-        Cell: (row: any) => {
-          const rewards = Number(row.value).toLocaleString();
-          if (rewards === "0") {
-            return "";
-          }
-          return rewards;
-        },
+        accessor: "rewardString",
       },
     ],
     []
@@ -334,7 +338,7 @@ function ForkTable({ data }: { data: Fork[] }) {
   } = useTable(
     {
       columns: tableColumns,
-      data,
+      data: tableData,
       initialState: { pageIndex: 0 },
     },
     useSortBy,
