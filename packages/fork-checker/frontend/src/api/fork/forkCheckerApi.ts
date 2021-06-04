@@ -16,7 +16,7 @@ type callParams = {
   headers?: object;
 };
 
-type Fork = {
+export type Fork = {
   blocks: string[];
   creators: string[];
   id: string;

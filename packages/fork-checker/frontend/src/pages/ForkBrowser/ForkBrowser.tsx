@@ -6,12 +6,13 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useTable, useSortBy, usePagination } from 'react-table';
+import { useTable, useSortBy, usePagination, Column } from "react-table";
 import { useQuery } from "react-query";
 import { Link } from "react-router-dom";
 
 import { forkCheckerApi } from "../../api/fork";
 import { explorerApi } from "../../api/explorer";
+import { Fork } from "../../api/fork/forkCheckerApi";
 
 // CONTEXT
 
@@ -212,7 +213,7 @@ const useForksQuery = (timeFrame: number, refreshTimer: number) => {
 
 const useSummaryQuery = () => {
   return useQuery([], () => explorerApi.getSummary());
-}
+};
 
 // BLURBS
 
@@ -228,11 +229,15 @@ function ForkBlurbs() {
           <div className="Summary-Wrapper" key={0}>
             <div className="Summary-Blurbs">
               <div className="Blurb-Header" id="Summary-Length">
-                <div className="Blurb-SubNum">{Number(sum.blockchainLength).toLocaleString()}</div>
+                <div className="Blurb-SubNum">
+                  {Number(sum.blockchainLength).toLocaleString()}
+                </div>
                 <div className="Blurb-SubText">Blockchain Length</div>
               </div>
               <div className="Blurb-Header" id="Summary-Slot">
-                <div className="Blurb-SubNum">{Number(sum.globalSlot).toLocaleString()}</div>
+                <div className="Blurb-SubNum">
+                  {Number(sum.globalSlot).toLocaleString()}
+                </div>
                 <div className="Blurb-SubText">Current Slot</div>
               </div>
               <div className="Blurb-Header" id="Summary-Epoch">
@@ -240,11 +245,19 @@ function ForkBlurbs() {
                 <div className="Blurb-SubText">Current Epoch</div>
               </div>
               <div className="Blurb-Header" id="Summary-Currency">
-                <div className="Blurb-SubNum">{Number(sum.totalCurrency.split('./[1-9]/')[0]).toLocaleString()}</div>
+                <div className="Blurb-SubNum">
+                  {Number(
+                    sum.totalCurrency.split("./[1-9]/")[0]
+                  ).toLocaleString()}
+                </div>
                 <div className="Blurb-SubText">Total Currency</div>
               </div>
               <div className="Blurb-Header" id="Summary-Locked">
-                <div className="Blurb-SubNum">{Number(sum.lockedSupply.split('./[1-9]/')[0]).toLocaleString()}</div>
+                <div className="Blurb-SubNum">
+                  {Number(
+                    sum.lockedSupply.split("./[1-9]/")[0]
+                  ).toLocaleString()}
+                </div>
                 <div className="Blurb-SubText">Locked Supply</div>
               </div>
             </div>
@@ -254,63 +267,58 @@ function ForkBlurbs() {
     }
     return items;
   }, [summary]);
-  return <div id="Summary-Blurbs">{blurbs}</div>
+  return <div id="Summary-Blurbs">{blurbs}</div>;
 }
 
 // TABLE
 
-// TODO: Determine why usePagination and useSortBy are causing React to exceed maximum update depth, then impliment them 
+// TODO: Determine why usePagination and useSortBy are causing React to exceed maximum update depth, then impliment them
 
-function BuildForkTable(promise: any) {
+function ForkTable({ data }: { data: Fork[] }) {
+  const tableColumns = useMemo<Column<Fork>[]>(
+    () => [
+      {
+        Header: "Date",
+        accessor: "last_updated",
+        Cell: (row: any) => {
+          const timestamp = new Date(row.value);
+          if (timestamp instanceof Date && !isNaN(timestamp.getTime())) {
+            return (
+              timestamp.toLocaleDateString() +
+              " " +
+              timestamp.toLocaleTimeString()
+            );
+          }
+          return "";
+        },
+      },
+      {
+        Header: "Fork Length",
+        accessor: "length",
+      },
+      {
+        Header: "Fork ID",
+        accessor: "id",
+        Cell: (row: any) => (
+          <Link to={{ pathname: `/fork/${row.value}` }}>{row.value}</Link>
+        ),
+      },
+      {
+        Header: "Unrealized Rewards ",
+        accessor: "rewards",
+        Cell: (row: any) => {
+          const rewards = Number(row.value).toLocaleString();
+          if (rewards === "0") {
+            return "";
+          }
+          return rewards;
+        },
+      },
+    ],
+    []
+  );
 
-  const tableColumns = useMemo(() => [
-    {
-      Header: 'Date',
-      accessor: 'last_updated',
-      Cell: (row:any) => {
-        const timestamp = new Date(row.value)
-        if (timestamp instanceof Date && !isNaN(timestamp.getTime())){
-          return timestamp.toLocaleDateString() + ' ' + timestamp.toLocaleTimeString();
-        }
-        return '';
-      }
-    },
-    {
-      Header: 'Fork Length',
-      accessor: 'length',
-    },
-    {
-      Header: 'Fork ID',
-      accessor: 'id',
-      Cell: (row:any) => (<Link to={{ pathname: `/fork/${row.value}` }}>{row.value}</Link>)
-    },
-    {
-      Header: 'Unrealized Rewards ',
-      accessor: 'rewards',
-      Cell: (row:any) => {
-        const rewards = Number(row.value).toLocaleString()
-        if (rewards === "0"){
-          return '';
-        }
-        return rewards;
-      }
-    }
-  ],[])
-
-  const memoData = useMemo(() => {
-    if(promise){
-      return JSON.parse(JSON.stringify(promise))
-    }
-    return [{
-      'last_updated': '',
-      'length': '',
-      'latest': '',
-      'rewards': ''
-    }]
-  }, [promise]);
-
-  const 
-  {
+  const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
@@ -323,13 +331,14 @@ function BuildForkTable(promise: any) {
     setPageSize,
     state,
     prepareRow,
-  } = useTable ({
-    columns: tableColumns,
-    data: memoData,
-    initialState: { pageIndex : 0 }
-  },
-  useSortBy,
-  usePagination,
+  } = useTable(
+    {
+      columns: tableColumns,
+      data,
+      initialState: { pageIndex: 0 },
+    },
+    useSortBy,
+    usePagination
   );
 
   const { pageIndex, pageSize } = state;
@@ -341,11 +350,17 @@ function BuildForkTable(promise: any) {
           <thead>
             {headerGroups.map((headerGroup, index) => (
               <tr {...headerGroup.getHeaderProps} key={index}>
-                {headerGroup.headers.map(column => (
+                {headerGroup.headers.map((column) => (
                   <th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                    {column.render('Header')}
+                    {column.render("Header")}
                     <span>
-                      {column.isSorted ? (column.isSortedDesc ? ' ⏷' : ' ⏶') : ' ⠀'/* This last one is unicode character U+2800, not a space */}
+                      {
+                        column.isSorted
+                          ? column.isSortedDesc
+                            ? " ⏷"
+                            : " ⏶"
+                          : " ⠀" /* This last one is unicode character U+2800, not a space */
+                      }
                     </span>
                   </th>
                 ))}
@@ -353,36 +368,44 @@ function BuildForkTable(promise: any) {
             ))}
           </thead>
           <tbody {...getTableBodyProps()}>
-            {page.map(row => {
-              prepareRow(row)
+            {page.map((row) => {
+              prepareRow(row);
               return (
                 <tr {...row.getRowProps()}>
-                  {row.cells.map(cell => {
-                    return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
+                  {row.cells.map((cell) => {
+                    return (
+                      <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
+                    );
                   })}
                 </tr>
-            )})}
+              );
+            })}
           </tbody>
         </table>
         <div className="TableFooter">
           <span className="TableNav">
-            <button onClick={() => previousPage()} disabled={!canPreviousPage}>{'<<'}</button>
+            <button onClick={() => previousPage()} disabled={!canPreviousPage}>
+              {"<<"}
+            </button>
             <span>
-              {' Page '}
+              {" Page "}
               <strong>
-                {pageIndex + 1 + " of " + pageOptions.length + ' '}
+                {pageIndex + 1 + " of " + pageOptions.length + " "}
               </strong>
             </span>
-            <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
-              {
-                [10, 25, 50].map((pageSize) => (
-                  <option className="option" key={pageSize} value={pageSize}>
-                    Show {pageSize}
-                  </option>
-                ))
-              }
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              {[10, 25, 50].map((pageSize) => (
+                <option className="option" key={pageSize} value={pageSize}>
+                  Show {pageSize}
+                </option>
+              ))}
             </select>
-            <button onClick={() => nextPage()} disabled={!canNextPage}>{'>>'}</button>
+            <button onClick={() => nextPage()} disabled={!canNextPage}>
+              {">>"}
+            </button>
           </span>
         </div>
       </div>
@@ -390,14 +413,12 @@ function BuildForkTable(promise: any) {
   );
 }
 
-
-
-
-function ForkTable() {
-  const { forkTimeFrame, refreshTimer } =
-    useForkBrowserContext();
+function ForkTableWrapper() {
+  const { forkTimeFrame, refreshTimer } = useForkBrowserContext();
   const { data } = useForksQuery(forkTimeFrame, refreshTimer);
-  return BuildForkTable(data);
+  const tableData = data ?? [];
+
+  return <ForkTable data={tableData} />;
 }
 
 function ForkBrowser() {
@@ -405,7 +426,7 @@ function ForkBrowser() {
     <ForkBrowserProvider>
       <ToolBar />
       <ForkBlurbs />
-      <ForkTable />
+      <ForkTableWrapper />
     </ForkBrowserProvider>
   );
 }
