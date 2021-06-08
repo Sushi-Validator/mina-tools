@@ -263,7 +263,6 @@ def validate(blockchain, master, verbose):
 
 
 # Marks the canonical chain as such.
-# THIS IS NOT WORKING AS INTENDED
 def paint(blockchain):
     canonical = blockchain.canonical()
     while canonical is not None:
@@ -294,13 +293,14 @@ def stage(forks, blocks):
     staging = {}
     for fork in forks:
         # 'staged_fork' contains all data for a given fork
-        staged_fork = {"length": len(fork), "blocks": {"block": [], "creator": []}, "creators": [], "rewards": 0,
-                       "latest": '', "last_updated": 0}
+        staged_fork = {"length": len(fork), "blocks": {"block": [], "timestamp": [], "creator": []}, "creators": [],
+                       "rewards": 0, "latest": '', "last_updated": 0}
         initialized = False
         fork_root = ""
         for block in fork:
             # Blocks in fork inserted such that oldest block is at index 0
             staged_fork["blocks"]["block"].insert(0, block)
+            staged_fork["blocks"]["timestamp"].insert(0, int(fork[block]["scheduled_time"]))
             staged_fork["blocks"]["creator"].insert(0, fork[block]["protocol_state"]["body"]["consensus_state"][
                 "block_creator"])
             # Set local variable to the oldest block hash for use later in creating unique ID hash
