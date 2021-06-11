@@ -286,43 +286,137 @@ def process(blockchain, master):
     return forks
 
 
+# This will unpack our stored staged forks (if available), so that we only do work on new or updated forks
+# Makes use of many serialized data "chunks" - they may seem redundant or wasteful, but they speed things up massively
+# TODO: Bundle the various pickles into a single one so there's less I/O and visual clutter
+def prestage(forks, blocks, blockchain):
+    # Staging file is used to store previously staged forks
+    staging = os.environ.get("STAGING", "staging.json")
+    # Latest file is used to store the most recently processed blocks within all known forks
+    late = os.environ.get("LATEST", "latest.pickle")
+    # Resolved file is used to store a mapping of timestamps to hashes for the blockchain's canonical chain
+    resolution = os.environ.get("RESOLVED", "resolved.pickle")
+    # Alertable file is used to store a mapping of blockchain height to hashes for the entire blockchain
+    alert = os.environ.get("ALERTABLE", "alertable.pickle")
+
+    # Opening Staging
+    if not Path(staging).is_file():
+        with open(staging, "w", encoding="ISO-8859-1") as new_staging:
+            new_staging.write("{}")
+            new_staging.close()
+    # Opening Latest
+    try:
+        latest = pickle.load(open(late, "rb"))
+    except (OSError, IOError):
+        latest = set()
+    # Opening Resolved
+    try:
+        resolved = pickle.load(open(resolution, "rb"))
+    except (OSError, IOError):
+        resolved = [set(), {}]
+    # Opening Alertable
+    try:
+        alertable = pickle.load(open(alert, "rb"))
+    except (OSError, IOError):
+        alertable = [list(), []]
+
+    # Update Resolved and Alertable first, as they rely only on the main blockchain data
+    for block_hash in blockchain.blocks:
+        block = blockchain.get(block_hash)
+        # Alertable
+        # Alertable is an array containing a list and an array. The list is used to find the intersection of blockchain
+        # heights. Its index is mapped 1:1 to the array, which contains the corresponding hash of the block in question
+        if block.hash not in alertable[1]:
+            alertable[0].append(block.height)
+            alertable[1].append(block.hash)
+
+        # Resolved
+        # Resolved is an array containing a set and a dict. The set is used to find the appropriate timestamp of
+        # resolution, while the dict maps that resolution timestamp to a hash used for lookup to get the final block
+        if block.canon and block.timestamp not in resolved[0]:
+            resolved[0].add(int(block.timestamp))  # Timestamps are unique, though only by coincidence, not definition
+            resolved[1][int(block.timestamp)] = block.hash
+
+    # Load our past staging to pick up where we left off
+    with open(staging, "r+", encoding="ISO-8859-1") as staging_file:
+        contents = staging_file.read()
+        staged = json.loads(contents)
+
+        # Update latest as necessary
+        for block in staged:
+            latest.add(staged[block]["latest"])
+
+        # Check head of fork to "latest" field in staged forks - if they match, the staged fork is up to date
+        for fork in forks:
+            updated = False
+            if list(fork.keys())[0] in latest:
+                updated = True
+            # Go ahead with staging if the fork is not up to date within the staging json
+            if not updated:
+                stage(staged, fork, blocks, resolved, alertable)
+
+        staging_file.seek(0)
+        staging_file.truncate()
+
+        # Re-serialization
+        json.dump(staged, staging_file, ensure_ascii=False, indent=4)
+        pickle.dump(latest, open(late, "wb"))
+        pickle.dump(resolved, open(resolution, "wb"))
+        pickle.dump(alertable, open(alert, "wb"))
+    return staged
+
+
 # Prepares the fork data to be received properly by the FireBase database.
-# Requires creating a collection of forks using the fork_process() function.
-def stage(forks, blocks):
-    # 'staging' is JSON data which will contain a new "snapshot" of the firebase database for upload
-    staging = {}
-    for fork in forks:
-        # 'staged_fork' contains all data for a given fork
-        staged_fork = {"length": len(fork), "blocks": {"block": [], "timestamp": [], "creator": []}, "creators": [],
-                       "rewards": 0, "latest": '', "last_updated": 0}
-        initialized = False
-        fork_root = ""
-        for block in fork:
-            # Blocks in fork inserted such that oldest block is at index 0
-            staged_fork["blocks"]["block"].insert(0, block)
-            staged_fork["blocks"]["timestamp"].insert(0, int(fork[block]["scheduled_time"]))
-            staged_fork["blocks"]["creator"].insert(0, fork[block]["protocol_state"]["body"]["consensus_state"][
-                "block_creator"])
-            # Set local variable to the oldest block hash for use later in creating unique ID hash
-            if not initialized:
-                fork_root = block
-                initialized = True
-            # Add 1440 mina to "lost rewards" if the block is supercharged, otherwise 720
-            if fork[block]["protocol_state"]["body"]["consensus_state"]["supercharge_coinbase"]:
-                staged_fork["rewards"] += 1440
-            else:
-                staged_fork["rewards"] += 720
-            # Update the 'latest' and 'last_updated' fields according to our most recent block
-            if int(fork[block]["scheduled_time"]) > int(staged_fork["last_updated"]):
-                staged_fork["last_updated"] = int(fork[block]["scheduled_time"])
-                staged_fork["latest"] = [block][0]
-        # Unique ID is MD5 generated from the timestamp of the first block in the fork combined with its state hash
-        if fork_root != '':
-            fork_combo = fork_root + blocks[fork_root]["scheduled_time"] + \
-                         blocks[fork_root]["protocol_state"]["body"]["consensus_state"]["block_creator"]
-            fork_hash = hashlib.md5(fork_combo.encode("utf-8")).hexdigest()
-            staging[fork_hash] = staged_fork
-    return staging
+def stage(staging, fork, blocks, resolved, alert):
+    # 'staged_fork' contains all data for a given fork
+    staged_fork = {"length": len(fork), "blocks": {"block": [], "timestamp": [], "creator": [], "alertable": []},
+                   "rewards": 0, "latest": '', "last_updated": 0, "resolved_at": ''}
+    initialized = False
+    fork_root = ""
+    for block in fork:
+        # Blocks in fork inserted such that oldest block is at index 0
+        staged_fork["blocks"]["block"].insert(0, block)
+        staged_fork["blocks"]["timestamp"].insert(0, int(fork[block]["scheduled_time"]))
+        staged_fork["blocks"]["creator"].insert(0, fork[block]["protocol_state"]["body"]["consensus_state"][
+            "block_creator"])
+        # Set local variable to the oldest block hash for use later in creating unique ID hash
+        if not initialized:
+            fork_root = block
+            initialized = True
+        # Add 1440 mina to "lost rewards" if the block is supercharged, otherwise 720
+        if fork[block]["protocol_state"]["body"]["consensus_state"]["supercharge_coinbase"]:
+            staged_fork["rewards"] += 1440
+        else:
+            staged_fork["rewards"] += 720
+        # Update the 'latest' and 'last_updated' fields according to our most recent block
+        if int(fork[block]["scheduled_time"]) > int(staged_fork["last_updated"]):
+            staged_fork["last_updated"] = int(fork[block]["scheduled_time"])
+            staged_fork["latest"] = [block][0]
+
+        # Resolved At check - checks for the earliest canonical block after the current end of the fork
+        resolved_at = min(filter(lambda i: i > int(blocks[fork_root]["scheduled_time"]), resolved[0]))
+        resolved_block = resolved[1][resolved_at]
+        staged_fork["resolved_at"] = resolved_block
+
+        # Alertable check - checks for any blocks in the blockchain produced at the same slot as this current one
+        # Sometimes there are none, and there never seem to be more than one, so only one hash is stored here
+        alertable = ''
+        comparison = set()
+        comparison.add(fork[block]["protocol_state"]["body"]["consensus_state"]["global_slot_since_genesis"])
+        intersection = comparison.intersection(set(alert[0]))
+        for intersect in intersection:
+            result = alert[1][alert[0].index(intersect)]
+            if result != block:
+                alertable = result
+
+        staged_fork["blocks"]["alertable"].insert(0, alertable)
+
+    # Unique ID is MD5 generated from the timestamp of the first block in the fork combined with its state hash
+    if fork_root != '':
+        fork_combo = fork_root + blocks[fork_root]["scheduled_time"] + \
+                     blocks[fork_root]["protocol_state"]["body"]["consensus_state"]["block_creator"]
+        fork_hash = hashlib.md5(fork_combo.encode("utf-8")).hexdigest()
+        staging[fork_hash] = staged_fork
 
 
 # Pushes changes to a FireBase database.
@@ -359,7 +453,7 @@ def powercycle(printout=False, integrity_check=False):
     master, new_files = parse(files)
     end = time.time()
     if printout:
-        print(f"Parsed {new_files} new Blocks from total Blocks in {end - start} seconds.")
+        print(f"Parsed {new_files} new Blocks in {end - start} seconds.")
 
     # Map Blocks
     start = time.time()
@@ -394,7 +488,7 @@ def powercycle(printout=False, integrity_check=False):
 
     # Place forks into JSON data for upload
     start = time.time()
-    staging = stage(forks, master)
+    staging = prestage(forks, master, blockchain)
     end = time.time()
     if printout:
         print(f"Staged {len(staging)} forks for upload in {end - start} seconds.")
