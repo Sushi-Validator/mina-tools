@@ -1,58 +1,43 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from 'react';
-import logo from './logo.svg';
-import { Counter } from './features/counter/Counter';
 import './App.css';
+import { Redirect, Route, BrowserRouter as Router, Switch } from 'react-router-dom';
+import { ForkBrowser } from './pages/ForkBrowser';
+import { SingleFork } from './pages/SingleFork';
 
-function App() {
+// Main page
+const Index = () => (
+  <div className="App">
+    <Router>
+      <header className="App-header">
+        <div id="Fork-Header">
+          <div id="Logo">
+          <img src="https://lithi.io/file/RiJn.webp" alt='sushi'></img>
+          SUSHI VALIDATOR
+          </div>
+        </div>
+      </header>
+      <Switch>
+        <Route exact path="/">
+          <ForkBrowser />
+        </Route>
+        <Route path="/fork/:forkId">
+          <SingleFork />
+        </Route>
+      </Switch>
+    </Router>
+  </div>
+);
+
+// Producer page
+// Huge TODO
+const Producer = () => {
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <Counter />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <span>
-          <span>Learn </span>
-          <a
-            className="App-link"
-            href="https://reactjs.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            React
-          </a>
-          <span>, </span>
-          <a
-            className="App-link"
-            href="https://redux.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Redux
-          </a>
-          <span>, </span>
-          <a
-            className="App-link"
-            href="https://redux-toolkit.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Redux Toolkit
-          </a>
-          ,<span> and </span>
-          <a
-            className="App-link"
-            href="https://react-redux.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            React Redux
-          </a>
-        </span>
       </header>
     </div>
-  );
-}
+  )
+};
 
-export default App;
+export default Index;
