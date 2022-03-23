@@ -1,0 +1,8 @@
+pandas
+dash
+jupyter_dash
+gunicorn
+dash-bootstrap-components
+base58
+flask
+plotly
